@@ -1,0 +1,62 @@
+@startuml Entity Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+entity "User" as User {
+    * userId : string
+    --
+    username : string
+    secretKey : string
+    currentRoom : string
+}
+
+entity "Message" as Message {
+    * messageId : string
+    --
+    sender : string
+    room : string
+    imageData : string
+    encryptedContent : string
+    timestamp : datetime
+    isDecoded : boolean
+}
+
+entity "Room" as Room {
+    * roomName : string
+    --
+    description : string
+    createdAt : datetime
+}
+
+entity "Settings" as Settings {
+    * settingId : string
+    --
+    userId : string
+    settingKey : string
+    settingValue : string
+}
+
+User ||--o{ Message : sends
+Room ||--o{ Message : contains
+User ||--|| Settings : has
+
+note right of User
+    Represents chat users
+    with credentials
+end note
+
+note right of Message
+    Chat messages with
+    steganographic images
+end note
+
+note right of Room
+    Chat rooms for grouping
+    conversations
+end note
+
+note right of Settings
+    User preferences
+    stored locally
+end note
+@enduml

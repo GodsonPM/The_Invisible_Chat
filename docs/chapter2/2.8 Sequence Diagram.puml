@@ -1,0 +1,37 @@
+@startuml Sequence Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+actor User1
+participant "Client1\n(HiddenChat)" as Client1
+participant "Server\n(Socket.IO)" as Server
+participant "Client2\n(HiddenChat)" as Client2
+participant "Steganography" as Stego
+participant "Crypto" as Crypto
+participant "DB" as DB
+
+== Sending Message ==
+User1 -> Client1: Type message & select image
+Client1 -> Crypto: encryptMessage(text, key)
+Crypto --> Client1: encrypted text
+Client1 -> Stego: encodeMessageIntoImage(image, encrypted)
+Stego --> Client1: encoded image (base64)
+Client1 -> Server: send_message(room, encodedImage, sender)
+Client1 -> DB: add(message)
+DB --> Client1: saved
+
+== Receiving Message ==
+Server -> Client2: receive_message(encodedImage, sender)
+Client2 -> Stego: decodeMessageFromImage(encodedImage)
+Stego --> Client2: encrypted text
+Client2 -> Crypto: decryptMessage(encrypted, key)
+Crypto --> Client2: decrypted text
+Client2 -> Client2: Play sound & display message
+Client2 -> DB: add(message)
+DB --> Client2: saved
+
+note right Client2
+    If decryption fails,
+    show as plain image
+end note
+@enduml

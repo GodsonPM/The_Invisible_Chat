@@ -1,0 +1,54 @@
+@startuml Use Case Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequenceParticipant underline
+left to right direction
+
+actor "User" as User
+actor "Server" as Server
+
+rectangle "Invisible-Chat System" {
+    usecase "Join Room" as UC1
+    usecase "Send Hidden Message" as UC2
+    usecase "Receive Message" as UC3
+    usecase "View Cover Feed" as UC4
+    usecase "Access Hidden Chat" as UC5
+    usecase "Configure Settings" as UC6
+    usecase "Select Cover Image" as UC7
+    usecase "Toggle Chat Mode" as UC8
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+
+UC1 --> Server : join_room
+UC2 --> Server : send_message
+UC3 <-- Server : receive_message
+UC4 --> Server : (view public feed)
+UC5 --> Server : (access via secret trigger)
+
+note right of UC2
+    Includes:
+    - Encrypt message
+    - Encode into image
+    - Send via socket
+end note
+
+note right of UC3
+    Includes:
+    - Decode from image
+    - Decrypt message
+    - Display if valid
+end note
+
+note right of UC8
+    Triple-click header
+    to switch modes
+end note
+@enduml

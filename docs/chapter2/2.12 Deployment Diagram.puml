@@ -1,0 +1,41 @@
+@startuml Deployment Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+top to bottom direction
+
+node "Client Machine" as Client {
+    artifact "Web Browser" as Browser
+    database "IndexedDB" as LocalDB
+}
+
+node "Server Machine" as Server {
+    artifact "Node.js Server" as NodeServer
+    artifact "Socket.IO" as SocketIO
+}
+
+Browser --> NodeServer : HTTP/WebSocket\n(port 3001)
+Browser --> LocalDB : Local Storage
+
+note right of Browser
+    Runs React app
+    Handles UI, steganography,
+    encryption, local storage
+end note
+
+note right of NodeServer
+    Express server
+    Handles real-time messaging
+    Room management
+end note
+
+note right of LocalDB
+    Client-side storage
+    for message history
+    No server persistence
+end note
+
+note right of SocketIO
+    Enables real-time
+    bidirectional communication
+end note
+@enduml

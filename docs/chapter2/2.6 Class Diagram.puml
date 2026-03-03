@@ -1,0 +1,89 @@
+@startuml Class Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+class App {
+    - mode: string
+    - messages: Message[]
+    - username: string
+    - secretKey: string
+    - room: string
+    - showSettings: boolean
+    + handleSecretTrigger()
+    + sendMessage(image)
+    + render()
+}
+
+class HiddenChat {
+    - inputText: string
+    - selectedImage: File
+    - isProcessing: boolean
+    - isTyping: boolean
+    + handleInputChange()
+    + handleImageSelect()
+    + handleSend()
+    + render()
+}
+
+class CoverFeed {
+    - messages: Message[]
+    + render()
+}
+
+class Steganography {
+    + {static} encodeMessageIntoImage(file, message): Promise<string>
+    + {static} decodeMessageFromImage(src): Promise<string>
+}
+
+class Crypto {
+    + {static} encryptMessage(message, key): string
+    + {static} decryptMessage(ciphertext, key): string
+}
+
+class DB {
+    + {static} messages: Table
+    + {static} add(message)
+    + {static} where(query)
+}
+
+class Server {
+    - io: SocketIO.Server
+    + handleConnection(socket)
+    + handleJoinRoom(room)
+    + handleSendMessage(data)
+    + handleTyping(data)
+}
+
+class Message {
+    - id: string
+    - image: string
+    - sender: string
+    - timestamp: string
+    - room: string
+    - decryptedContent: string
+}
+
+App --> HiddenChat : uses
+App --> CoverFeed : uses
+HiddenChat --> Steganography : uses
+HiddenChat --> Crypto : uses
+HiddenChat --> DB : saves
+App --> DB : loads
+App --> Server : connects via Socket
+Server --> Message : broadcasts
+
+note right of Steganography
+    Uses LSB steganography
+    in image pixels
+end note
+
+note right of Crypto
+    AES encryption
+    using CryptoJS
+end note
+
+note right of DB
+    IndexedDB via Dexie
+    for local storage
+end note
+@enduml

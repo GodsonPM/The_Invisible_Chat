@@ -1,0 +1,39 @@
+@startuml State Chart Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+[*] --> CoverMode
+
+state CoverMode as "Cover Feed Mode"
+state ChatMode as "Hidden Chat Mode"
+
+CoverMode --> ChatMode : Triple-click header\n(secret trigger)
+ChatMode --> CoverMode : Triple-click header\n(secret trigger)
+
+state "Settings Modal" as Settings
+ChatMode --> Settings : Click settings button
+Settings --> ChatMode : Save & Close
+
+state "Typing" as Typing
+ChatMode --> Typing : User starts typing
+Typing --> ChatMode : Timeout (2s) or Send
+
+state "Processing" as Processing
+ChatMode --> Processing : Click Send
+Processing --> ChatMode : Encoding complete\nor Error
+
+note right of CoverMode
+    Displays images as
+    social media feed
+end note
+
+note right of ChatMode
+    Shows encrypted chat
+    with steganographic messages
+end note
+
+note right of Processing
+    Encrypts, encodes,
+    sends message
+end note
+@enduml

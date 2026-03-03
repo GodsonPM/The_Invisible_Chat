@@ -1,0 +1,48 @@
+@startuml Component Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+package "Client Side" {
+    [React App] as React
+    [HiddenChat Component] as Chat
+    [CoverFeed Component] as Feed
+    [Steganography Utils] as Stego
+    [Crypto Utils] as Crypto
+    [DB Utils (IndexedDB)] as DBClient
+}
+
+package "Server Side" {
+    [Express Server] as Server
+    [Socket.IO] as Socket
+}
+
+[React] --> Chat
+[React] --> Feed
+[Chat] --> Stego
+[Chat] --> Crypto
+[Chat] --> DBClient
+[React] --> DBClient
+
+[React] --> Socket : WebSocket connection
+[Socket] --> Server
+
+note right of Stego
+    LSB Steganography
+    for image encoding/decoding
+end note
+
+note right of Crypto
+    AES encryption/decryption
+    using CryptoJS
+end note
+
+note right of DBClient
+    Local message storage
+    using Dexie
+end note
+
+note right of Socket
+    Real-time messaging
+    Room-based communication
+end note
+@enduml
