@@ -1,0 +1,428 @@
+================================================================================
+  GHOST PROTOCOL — INVISIBLE CHAT
+  Project Guide & Feature Documentation
+  Version 4.0 | Build Date: 2026-02-19
+================================================================================
+
+  A steganography + steganalysis tool that hides secret messages inside
+  ordinary images. Encrypted with AES-256-GCM. Undetectable to the naked eye.
+
+================================================================================
+  TABLE OF CONTENTS
+================================================================================
+
+  1. QUICK START
+  2. HOW STEGANOGRAPHY WORKS
+  3. FEATURE GUIDE
+     3.1  TOOL (ENCRYPT / DECRYPT / SCAN)
+     3.2  STEGO CHAT (Real-time Steganographic Chat)
+     3.3  CHAT (Real-time Plaintext Chat)
+     3.4  Operation History
+     3.5  Sound Effects
+  4. SECURITY DETAILS
+  5. TIPS & BEST PRACTICES
+  6. PERFORMANCE & LIMITS
+  7. FILE STRUCTURE
+  8. KNOWN LIMITATIONS
+
+================================================================================
+  1. QUICK START
+================================================================================
+
+  RUNNING THE APP:
+  ----------------
+    npm install          (first time only)
+    npm run dev          (launches at http://localhost:5173 or your configured port)
+
+  APP MODES (TABS):
+  -----------------
+    The app has three main sections, selectable from the top tab bar:
+    1. TOOL: The classic offline steganography and steganalysis utility.
+    2. STEGO CHAT: Real-time, socket-based chat where messages are exchanged as stego-images.
+    3. CHAT: Traditional real-time plaintext chat rooms.
+
+  SENDING A SECRET MESSAGE IN TOOL MODE (3 STEPS):
+  ------------------------------------------------
+    Step 1 — Switch to the TOOL tab, pick a cover image (PNG or JPEG)
+    Step 2 — Type your secret message, set a password (optional)
+    Step 3 — Click CONCEAL DATA → download the encoded PNG
+
+  The downloaded image looks completely normal.
+  Share it via email, Discord, Telegram (as a FILE, not compressed image).
+
+  RECEIVING A SECRET MESSAGE IN TOOL MODE:
+  ----------------------------------------
+    Step 1 — Go to the TOOL tab and switch to DECRYPT sub-mode
+    Step 2 — Upload the encoded image
+    Step 3 — Enter the same password used to encrypt
+    Step 4 — Your message appears in the result panel
+
+================================================================================
+  2. HOW STEGANOGRAPHY WORKS
+================================================================================
+
+  Ghost Protocol uses LSB (Least Significant Bit) steganography:
+
+  Each pixel in an image has R, G, B channels (0-255 each).
+  The LAST bit of each channel is changed to store the message.
+
+  Example:
+    Original pixel R value:  10110101  (181)
+    With hidden bit '1':     10110101  (181) ← unchanged
+    With hidden bit '0':     10110100  (180) ← change of 1, invisible
+
+  Human eyes cannot distinguish a color difference of 1 in 256.
+
+  DATA FORMAT (in order, encoded into the image):
+  ┌────────────────────┬────────────────────────────────────────────────┐
+  │ Field              │ Size                                           │
+  ├────────────────────┼────────────────────────────────────────────────┤
+  │ Length Header      │ 32 bits (stores total payload length)          │
+  │ Magic Bytes "GPA"  │ 3 bytes (marks encrypted messages)             │
+  │ Salt               │ 16 bytes (random, for PBKDF2)                  │
+  │ IV                 │ 12 bytes (random, for AES-GCM)                 │
+  │ Ciphertext         │ Variable (encrypted message + auth tag)        │
+  └────────────────────┴────────────────────────────────────────────────┘
+
+  If NO password is used, no magic bytes are written — just the raw
+  UTF-8 encoded message starts after the length header.
+
+================================================================================
+  3. FEATURE GUIDE
+================================================================================
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  3.1  TOOL MODE (ENCRYPT / DECRYPT / SCAN)                              │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  The TOOL tab contains the traditional offline steganography utilities.
+
+  ENCRYPT sub-mode:
+
+  PURPOSE:    Hide a secret text message inside a cover image.
+
+  HOW TO USE:
+    1. Click the image drop zone (left panel) or drag a PNG/JPEG onto it
+    2. In the ENCRYPT tab (right panel), type your secret message
+    3. Optionally set an Encryption Key (password) — enables AES-256-GCM
+    4. Click "CONCEAL DATA"
+    5. Download the generated .png file
+
+  OUTPUT:
+    - A PNG image that looks identical to the cover image
+    - Contains your hidden message encoded in pixel LSBs
+    - If password was set: message is AES-GCM encrypted before encoding
+
+  ⚠ WARNING BOX — WHY IT IS THERE:
+    WhatsApp, Telegram, iMessage, and most social media COMPRESS images
+    when you send them normally. Compression destroys the hidden data.
+    You MUST send the file as a "Document" or "File" attachment.
+
+    Safe transmission methods:
+    ✓ Email attachment
+    ✓ Telegram → "File" (not camera roll photo)
+    ✓ Discord file upload
+    ✓ WhatsApp → Attach → Document
+    ✓ USB drive
+    ✗ WhatsApp "Photo" — DESTROYS hidden data
+    ✗ Instagram post — DESTROYS hidden data
+    ✗ Screenshots — DESTROYS hidden data
+
+  DECRYPT sub-mode:
+
+  PURPOSE:    Extract and read a hidden message from an encoded image.
+
+  HOW TO USE:
+    1. Upload the encoded image (must be the original PNG, not resaved)
+    2. Enter the same password used during encryption (if any)
+    3. Click "EXTRACT DATA"
+    4. Your secret message appears in the result panel
+
+  POSSIBLE ERRORS:
+    "No hidden message found or invalid format"
+      → Image may not be encoded, or was compressed/resaved
+
+    "🔒 This message is encrypted. Password required."
+      → The message was encoded with a password; enter it
+
+    "❌ Incorrect password or corrupted data."
+      → Wrong password, or the image was modified after encoding
+
+    "Failed to load image"
+      → File might be corrupted or an unsupported format
+
+  SCAN sub-mode (STEGANALYSIS):
+
+  PURPOSE:    Detect whether an image CONTAINS hidden data, without needing
+              to know the message or the password.
+
+  HOW TO USE:
+    1. Upload any image in the SCAN tab
+    2. Click "ANALYZE IMAGE"
+    3. See the detection score and LSB visualization
+
+  ANALYSIS METHODS:
+
+    ① CHI-SQUARE ANALYSIS (60% of score)
+       Compares frequency of pixel value pairs (e.g., 100 vs 101).
+       In natural images, these pairs have unequal frequencies.
+       LSB encoding forces them to converge → statistically detectable.
+       Score 0-100 (higher = more suspicious)
+
+    ② ENTROPY ANALYSIS (40% of score)
+       Encryped random data has entropy close to 1.0 bit per bit.
+       Natural image LSBs have lower entropy (0.7-0.9).
+       Score = bit-level Shannon entropy as percentage of max.
+
+    ③ LSB VISUAL ATTACK
+       Amplifies each pixel's last bit to maximum brightness (0→black, 1→white).
+       Clean images: random noise pattern.
+       Encoded images: dark structured bands where data ends, then noise.
+
+  VERDICT SCALE:
+    🟢 LOW  (0-40)   — Image appears clean, no hidden data detected
+    🟡 MEDIUM (41-70)— Suspicious patterns, possible hidden data
+    🔴 HIGH  (71-100)— Very likely contains hidden steganographic data
+
+  NOTE: This tool provides STATISTICAL EVIDENCE, not certainty.
+        A naturally complex image (e.g., sky, noise textures) may score
+        medium even without hidden data. Use as an indicator, not proof.
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  3.2  STEGO CHAT (Real-time Steganographic Chat)                        │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  PURPOSE:    Communicate in real-time within a secure chat room, where every
+              message transmitted is hidden inside a cover image.
+
+  HOW TO USE:
+    1. Click the "STEGO CHAT" tab.
+    2. Enter a Callsign (Username) and a Room ID.
+    3. (Optional) Provide a Room Password. If provided, all messages in the room
+       will be AES encrypted before being hidden in the image. Everyone in the
+       room must use the same password to decrypt messages.
+    4. Click "ESTABLISH LINK".
+    5. In the chat room, click the 📷 icon to select a cover image.
+    6. Type your message and click "SEND".
+
+  HOW IT WORKS:
+    - Your message is encoded into the selected cover image locally on your device.
+    - The resulting stego-image is sent over WebSockets to other users in the room.
+    - Receiving clients automatically decode the incoming stego-image (using the
+      shared room password if applicable) and display the hidden text.
+    - Anyone monitoring the network traffic only sees PNG images being transferred.
+
+  FEATURES:
+    - Typing indicators (who is currently typing).
+    - Online user count.
+    - Click any received image thumbnail to view the full cover image in a lightbox.
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  3.3  CHAT (Real-time Plaintext Chat)                                   │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  PURPOSE:    A standard, high-speed real-time chat room without steganography.
+              Useful for coordination or general conversation where the overhead
+              of image encoding is unnecessary.
+
+  HOW TO USE:
+    1. Click the "CHAT" tab.
+    2. Enter your name and a Room name.
+    3. Click "Join Room".
+    4. Type messages and press Enter or click the send button.
+
+  FEATURES:
+    - Standard chat interface with grouped messages for readability.
+    - Real-time typing indicators ("User is typing...").
+    - Online user count and system messages for users joining/leaving.
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  3.4  OPERATION HISTORY                                                 │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  PURPOSE:    Log of all encode/decode/scan operations in this browser.
+
+  ACCESS:     Click the 📋 button in the top-right header.
+
+  CONTENT OF EACH ENTRY:
+    - Action type (ENCRYPT / DECRYPT / SCAN) with color-coded left border
+    - AES badge — shown if encryption password was used
+    - Score badge (SCAN only) — shows detection score with color
+    - Result preview — decoded text, "Image generated", or verdict
+    - Timestamp — exact date and time of the operation
+
+  STORAGE:
+    - Saved to browser localStorage under key: "ghost_protocol_history"
+    - Persists between browser sessions
+    - Maximum 50 entries (oldest auto-deleted after that)
+    - Message previews truncated to 50 characters for privacy
+
+  CLEAR:
+    Click "CLEAR ALL" inside the history panel to wipe all entries.
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  3.5  SOUND EFFECTS                                                     │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  PURPOSE:    Retro 8-bit audio feedback for all interactions.
+
+  TOGGLE:     Click the 🔊 / 🔇 button in the header.
+
+  SOUND MAP:
+    Click / Tab Switch  — Short square wave chirp
+    File Loaded         — Rising three-note arpeggio
+    Processing Start    — Sawtooth frequency sweep (200→1200 Hz)
+    Success             — C-E-G-C major arpeggio
+    Error               — Descending buzz (sawtooth)
+    Scan Complete       — Four sine tone sequence
+    Reset               — Two-note descending chime
+    Keystroke           — Subtle random-pitch tap (typing)
+
+  TECHNOLOGY:
+    Pure Web Audio API — no external audio files required.
+    Single shared AudioContext (reused to avoid browser limits).
+
+================================================================================
+  4. SECURITY DETAILS
+================================================================================
+
+  ENCRYPTION ALGORITHM:    AES-256-GCM
+  KEY DERIVATION:          PBKDF2 (SHA-256, 100,000 iterations)
+  SALT:                    16 random bytes, generated per message
+  IV (nonce):              12 random bytes, generated per message
+  AUTH TAG:                128-bit GCM authentication tag (detects tampering)
+  API:                     Web Crypto API (browser native, no npm packages)
+
+  SECURITY PROPERTIES:
+    ✓ Authenticated Encryption — message can't be tampered without detection
+    ✓ Unique ciphertext — same message + same password = different bytes each time
+    ✓ No password → no encryption (plaintext UTF-8, still LSB encoded)
+    ✓ Wrong password gives "corrupted data" error, not a wrong decryption
+
+  WHAT IS SECURE:
+    ✓ Message content (with password) — computationally infeasible to break
+    ✓ The existence of data — difficult to detect without SCAN analysis
+    ✓ Brute-force resistance — 100K PBKDF2 iterations makes guessing slow
+
+  WHAT IS NOT SECURE:
+    ✗ Statistical detection — the SCAN tool (or similar) can detect data exists
+    ✗ No password mode — message is stored in readable UTF-8 LSBs
+    ✗ Image metadata — not stripped (original file name may be preserved)
+    ✗ Network transmission — this tool does not send data anywhere (offline)
+
+================================================================================
+  5. TIPS & BEST PRACTICES
+================================================================================
+
+  1. USE LARGE IMAGES
+     More pixels = more capacity. A 1920×1080 PNG can hold ~777 KB of data.
+     Capacity formula: (width × height × 3 bits) / 8 = capacity in bytes
+
+  2. USE PNG FORMAT
+     Always use PNG for both input and the downloaded encoded image.
+     JPEG uses lossy compression that DESTROYS hidden data upon save.
+     Input can be JPEG (it's re-encoded as PNG), but never re-save as JPEG.
+
+  3. CHOOSE A STRONG PASSWORD
+     The AES-256-GCM + PBKDF2 is only as strong as your password.
+     Use a passphrase of 4+ random words for strong security.
+
+  4. SHARE THE PASSWORD SEPARATELY
+     Never send the password and the encoded image through the same channel.
+     Use Signal/WhatsApp for the password, email for the image, as an example.
+
+  5. SEND AS A FILE, NOT A PHOTO
+     Always use the "Document" or "File" attachment option — never photo gallery.
+
+  6. TEST BEFORE SENDING
+     After encoding: download the image, then DECRYPT it to confirm it works.
+
+================================================================================
+  6. PERFORMANCE & LIMITS
+================================================================================
+
+  CAPACITY:
+    Maximum message size = (image_pixels × 3 - 32) / 8 bytes
+    Example limits:
+      500×500 px   → ~93 KB message
+      1920×1080 px → ~777 KB message
+      4K (3840×2160)→ ~3.1 MB message
+
+  SPEED (approximate on modern hardware):
+    Encoding a 1 MB image with 1 KB message: < 100ms
+    Scanning a 1 MB image:                   < 200ms
+    PBKDF2 key derivation:                   ~50-200ms (intentionally slow)
+
+  MEMORY USAGE:
+    Image data stored in canvas — no more than 2-3x the image file size.
+    Steganalysis runs in-place with O(1) extra memory (no large allocations).
+
+  BROWSER REQUIREMENTS:
+    Any modern browser supporting Web Crypto API (Chrome 37+, Firefox 34+,
+    Safari 11+, Edge 79+). No internet connection required after loading.
+
+================================================================================
+  7. FILE STRUCTURE
+================================================================================
+
+  invisible-chat/
+  ├── src/
+  │   ├── components/
+  │   │   ├── InvisibleChat.jsx   ← Tool UI component (Encrypt/Decrypt/Scan)
+  │   │   ├── ChatRoom.jsx        ← Stego Chat real-time room UI
+  │   │   ├── PlainChat.jsx       ← Standard plaintext real-time room UI
+  │   │   ├── InvisibleChat.css   ← Styles for Tool mode
+  │   │   ├── Chat.css            ← Shared styles for Chat modes
+  │   │   └── PlainChat.css       ← Specific styles for PlainChat
+  │   ├── utils/
+  │   │   ├── steganography.js    ← LSB encode/decode + AES-GCM encryption
+  │   │   └── steganalysis.js     ← Chi-Square, Entropy, LSB Visual Attack
+  │   ├── hooks/
+  │   │   ├── useSoundEffects.js  ← Web Audio API retro SFX
+  │   │   ├── useHistory.js       ← localStorage operation log
+  │   │   └── useSocket.js        ← WebSocket client logic for chat modes
+  │   └── App.jsx                 ← Main entry, handles Tab navigation
+  ├── server/
+  │   └── index.js                ← Node.js + Socket.io backend server for chat
+  ├── package.json
+  └── vite.config.js
+
+  PRESERVED (unused, for future P2P feature):
+  ├── src/components/NetworkPanel.jsx
+  ├── src/components/P2PChatLayout.jsx
+  ├── src/hooks/usePeer.js
+
+================================================================================
+  8. KNOWN LIMITATIONS
+================================================================================
+
+  ① JPEG INPUT QUALITY
+     JPEG images can be used as input, but the encoded output is always PNG.
+     JPEG's own compression artifacts don't interfere with LSB encoding.
+
+  ② SCREENSHOT SHARING
+     Taking a screenshot of the encoded image and sharing that screenshot
+     will NOT preserve the hidden data (screenshots re-compress the pixel data).
+
+  ③ SOCIAL MEDIA
+     Any platform that re-processes images (Instagram, Facebook, Twitter,
+     WhatsApp photo mode) will destroy the hidden data. This is by design
+     from those platforms, not a bug in this tool.
+
+  ④ BROWSER AUDIO CONTEXT
+     Web Audio requires user interaction before playing sounds.
+     Click anything in the app first — sounds will work after that.
+     (This is a browser security restriction, not a bug.)
+
+  ⑤ STEGANALYSIS FALSE POSITIVES
+     Highly textured images, noise-heavy photographs, or already-compressed
+     images may show elevated scan scores even without hidden data.
+     The SCAN tool is a statistical indicator, not a definitive detector.
+
+  ⑥ NO SERVER / NO NETWORK
+     This is a fully local, offline tool. No data is transmitted anywhere.
+     All processing happens in your browser.
+
+================================================================================
+  END OF GUIDE
+================================================================================

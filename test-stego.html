@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steganography Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            background: #0D0208;
+            color: #00FF41;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        button {
+            background: #00FF41;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px 5px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #00CC33;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            background: #000;
+            border: 1px solid #00FF41;
+            color: #00FF41;
+            padding: 8px;
+            font-family: monospace;
+            margin: 10px 0;
+            width: 100%;
+        }
+
+        .result {
+            border: 1px solid #00FF41;
+            padding: 15px;
+            margin: 15px 0;
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        img {
+            max-width: 100%;
+            border: 1px solid #00FF41;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔐 Steganography Test Suite</h1>
+
+        <h2>Step 1: Encode Message</h2>
+        <input type="file" id="imageInput" accept="image/*">
+        <input type="text" id="messageInput" placeholder="Enter secret message..."
+            value="Hello World! This is a secret message.">
+        <input type="text" id="keyInput" placeholder="Encryption key..." value="default-secret-key">
+        <button onclick="encodeMessage()">Encode & Encrypt</button>
+
+        <div id="encodedResult" class="result" style="display:none;">
+            <h3>✅ Encoded Image:</h3>
+            <img id="encodedImage">
+            <p>Message has been encrypted and hidden in the image above.</p>
+        </div>
+
+        <h2>Step 2: Decode Message</h2>
+        <button onclick="decodeMessage()">Decode & Decrypt</button>
+
+        <div id="decodedResult" class="result" style="display:none;">
+            <h3>🔓 Decoded Message:</h3>
+            <p id="decodedText"></p>
+        </div>
+    </div>
+
+    <script>
+        let encodedImageData = null;
+
+        // Encryption
+        function encryptMessage(message, secretKey) {
+            return CryptoJS.AES.encrypt(message, secretKey).toString();
+        }
+
+        // Decryption
+        function decryptMessage(ciphertext, secretKey) {
+            try {
+                const bytes = CryptoJS.AES.decrypt(ciphertext, secretKey);
+                return bytes.toString(CryptoJS.enc.Utf8);
+            } catch (error) {
+                return null;
+            }
+        }
+
+        // Steganography - Encode
+        function encodeMessageIntoImage(imageFile, message) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+
+                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imgData.data;
+
+                        const binaryMessage = stringToBinary(message);
+                        const messageLength = binaryMessage.length;
+                        const lengthHeader = messageLength.toString(2).padStart(32, '0');
+
+                        const fullBinaryData = lengthHeader + binaryMessage;
+
+                        if (fullBinaryData.length > data.length * 3) {
+                            reject(new Error("Message too long for this image."));
+                            return;
+                        }
+
+                        let dataIdx = 0;
+                        for (let i = 0; i < data.length; i++) {
+                            if ((i + 1) % 4 === 0) continue; // Skip Alpha
+
+                            if (dataIdx < fullBinaryData.length) {
+                                const bit = parseInt(fullBinaryData[dataIdx], 10);
+                                data[i] = (data[i] & 0xFE) | bit;
+                                dataIdx++;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        ctx.putImageData(imgData, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(imageFile);
+            });
+        }
+
+        // Steganography - Decode
+        function decodeMessageFromImage(imageSrc) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imgData.data;
+
+                    let collectedBits = '';
+                    let readingHeader = true;
+                    let messageLength = 0;
+
+                    for (let i = 0; i < data.length; i++) {
+                        if ((i + 1) % 4 === 0) continue;
+
+                        const bit = data[i] & 1;
+                        collectedBits += bit;
+
+                        if (readingHeader && collectedBits.length === 32) {
+                            messageLength = parseInt(collectedBits, 2);
+                            if (isNaN(messageLength)) {
+                                reject("Invalid header found");
+                                return;
+                            }
+                            collectedBits = '';
+                            readingHeader = false;
+                        } else if (!readingHeader && collectedBits.length === messageLength) {
+                            break;
+                        }
+                    }
+
+                    if (collectedBits.length < messageLength) {
+                        resolve(null);
+                        return;
+                    }
+
+                    const message = binaryToString(collectedBits);
+                    resolve(message);
+                };
+                img.src = imageSrc;
+            });
+        }
+
+        // Helpers
+        function stringToBinary(str) {
+            return str.split('').map(char => {
+                return char.charCodeAt(0).toString(2).padStart(8, '0');
+            }).join('');
+        }
+
+        function binaryToString(binary) {
+            const bytes = binary.match(/.{1,8}/g) || [];
+            return bytes.map(byte => String.fromCharCode(parseInt(byte, 2))).join('');
+        }
+
+        // UI Functions
+        async function encodeMessage() {
+            const imageInput = document.getElementById('imageInput');
+            const messageInput = document.getElementById('messageInput');
+            const keyInput = document.getElementById('keyInput');
+
+            if (!imageInput.files[0]) {
+                alert('Please select an image first!');
+                return;
+            }
+
+            const message = messageInput.value;
+            const key = keyInput.value;
+
+            try {
+                console.log('1. Original message:', message);
+
+                const encrypted = encryptMessage(message, key);
+                console.log('2. Encrypted:', encrypted);
+
+                encodedImageData = await encodeMessageIntoImage(imageInput.files[0], encrypted);
+                console.log('3. Encoded into image');
+
+                document.getElementById('encodedImage').src = encodedImageData;
+                document.getElementById('encodedResult').style.display = 'block';
+
+                console.log('✅ Encoding complete!');
+            } catch (error) {
+                alert('Error: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        async function decodeMessage() {
+            if (!encodedImageData) {
+                alert('Please encode a message first!');
+                return;
+            }
+
+            const keyInput = document.getElementById('keyInput');
+            const key = keyInput.value;
+
+            try {
+                console.log('1. Decoding from image...');
+
+                const decodedEncrypted = await decodeMessageFromImage(encodedImageData);
+                console.log('2. Extracted encrypted text:', decodedEncrypted);
+
+                const decrypted = decryptMessage(decodedEncrypted, key);
+                console.log('3. Decrypted message:', decrypted);
+
+                if (decrypted) {
+                    document.getElementById('decodedText').textContent = decrypted;
+                    document.getElementById('decodedResult').style.display = 'block';
+                    console.log('✅ Decoding complete!');
+                } else {
+                    alert('Failed to decrypt. Wrong key?');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+
+</html>
