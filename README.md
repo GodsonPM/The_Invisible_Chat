@@ -14,7 +14,7 @@ A secure steganography messaging tool extracted from the Retro OS project.
    ```
 2. Run the development server:
    ```bash
-   npm run dev
+   npm run dev:all
    ```
 
 ## Usage
