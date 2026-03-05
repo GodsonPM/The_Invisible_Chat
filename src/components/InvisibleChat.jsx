@@ -271,7 +271,7 @@ const InvisibleChat = () => {
                                     <label>SECRET MESSAGE</label>
                                     <textarea
                                         className="retro-textarea"
-                                        rows="6"
+                                        rows="3"
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
                                         onKeyDown={() => play(sfxKeystroke)}
@@ -304,37 +304,35 @@ const InvisibleChat = () => {
                                 </div>
                             )}
 
-                            <button
-                                className="action-btn"
-                                onClick={handleProcess}
-                                disabled={loading}
-                            >
-                                {loading ? "PROCESSING..." : (
-                                    mode === 'encode' ? "CONCEAL DATA" :
-                                        mode === 'decode' ? "EXTRACT DATA" :
-                                            "ANALYZE IMAGE"
+                            <div className="action-row">
+                                <button
+                                    className="action-btn"
+                                    onClick={handleProcess}
+                                    disabled={loading}
+                                >
+                                    {loading ? "PROCESSING..." : (
+                                        mode === 'encode' ? "CONCEAL DATA" :
+                                            mode === 'decode' ? "EXTRACT DATA" :
+                                                "ANALYZE IMAGE"
+                                    )}
+                                </button>
+                                {result && result.type === 'image' && (
+                                    <a
+                                        href={result.content}
+                                        download={`ghost_msg_${Date.now()}.png`}
+                                        className="download-link"
+                                    >
+                                        ⬇ DOWNLOAD
+                                    </a>
                                 )}
-                            </button>
+                            </div>
 
                             {error && <div className="error-msg">ERROR: {error}</div>}
 
-                            {result && (
+                            {result && result.type === 'text' && (
                                 <div className="result-area">
                                     <h4>RESULT</h4>
-                                    {result.type === 'text' ? (
-                                        <div className="retro-textarea" style={{ minHeight: '100px' }}>{result.content}</div>
-                                    ) : (
-                                        <div>
-                                            <p style={{ color: '#888', marginBottom: '10px' }}>Data successfully hidden in image.</p>
-                                            <a
-                                                href={result.content}
-                                                download={`ghost_msg_${Date.now()}.png`}
-                                                className="download-link"
-                                            >
-                                                ⬇ DOWNLOAD ENCODED IMAGE
-                                            </a>
-                                        </div>
-                                    )}
+                                    <div className="retro-textarea" style={{ minHeight: '80px' }}>{result.content}</div>
                                 </div>
                             )}
 
